@@ -1,69 +1,182 @@
 <html lang="en">
-  <head>
-    <title>3D Card Flip</title>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width" />
-    <style>
-      .card {
-  perspective: 1000px;
-  width: 200px;
-  height: 300px;
-  margin: 100px;
-}
 
-.card-inner {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  transform-style: preserve-3d;
-  transition: transform 0.8s ease;
-}
+<head>
+  <title>3D Card Flip</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width" />
+  <style>
+    .card {
+      perspective: 1000px;
+      width: 200px;
+      height: 300px;
+      margin: 100px;
+      touch-action: pan-y;
+      /* Prevent default vertical scrolling */
+    }
 
-.card:hover .card-inner {
-  transform: rotateY(180deg);
-}
+    .card-inner {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      transform-style: preserve-3d;
+      transition: transform 0.8s ease;
+    }
 
-.card-front,
-.card-back {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  backface-visibility: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.5rem;
-  color: white;
-  border-radius: 12px;
-}
+    .card:hover .card-inner {
+      transform: rotateY(180deg);
+    }
 
-.card-front {
-  background: #007bff;
-  transform: rotateZ(-30deg);
-}
+    .card-front,
+    .card-back {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      backface-visibility: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      color: white;
+      border-radius: 12px;
+    }
 
-img{
-  width: 100%;
-  height: 100%;
-}
+    .card-front {
+      background: #007bff;
+      transform: rotateZ(-30deg);
+    }
 
-.card-back {
-  background: #28a745;
-/*   transform: rotateY(180deg); */
-  transform: rotateY(180deg) rotateZ(30deg);
-}
-    </style>
-  </head>
-  <body>
-    <div class="card">
-      <div class="card-inner">
-        <div class="card-front">
-          <img src="./bg-1.png"/>
-        </div>
-        <div class="card-back">
-          <img src="./bg-2.png"/>
-        </div>
+    img {
+      width: 100%;
+      height: 100%;
+    }
+
+    .card-back {
+      background: #28a745;
+      /*   transform: rotateY(180deg); */
+      transform: rotateY(180deg) rotateZ(30deg);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="card">
+    <div class="card-inner">
+      <div class="card-front">
+        <img src="./bg-1.png" />
+      </div>
+      <div class="card-back">
+        <img src="./bg-2.png" />
       </div>
     </div>
-  </body>
+  </div>
+
+  <script>
+    class CardSwipeHandler {
+      constructor(cardElement) {
+        this.card = cardElement;
+        this.cardInner = cardElement.querySelector('.card-inner');
+        this.startX = 0;
+        this.currentX = 0;
+        this.isDragging = false;
+        this.rotationY = 0;
+        this.baseRotationY = 0;
+
+        this.init();
+      }
+
+      init() {
+        // Touch events for mobile
+        this.card.addEventListener('touchstart', this.handleTouchStart.bind(this), { passive: false });
+        this.card.addEventListener('touchmove', this.handleTouchMove.bind(this), { passive: false });
+        this.card.addEventListener('touchend', this.handleTouchEnd.bind(this), { passive: false });
+
+        // Mouse events for desktop testing
+        this.card.addEventListener('mousedown', this.handleMouseDown.bind(this));
+        this.card.addEventListener('mousemove', this.handleMouseMove.bind(this));
+        this.card.addEventListener('mouseup', this.handleMouseUp.bind(this));
+        this.card.addEventListener('mouseleave', this.handleMouseUp.bind(this));
+      }
+
+      handleTouchStart(e) {
+        e.preventDefault();
+        this.startX = e.touches[0].clientX;
+        this.isDragging = true;
+        this.cardInner.style.transition = 'none';
+
+        // Store current rotation as base for new swipe
+        this.baseRotationY = this.rotationY;
+      }
+
+      handleTouchMove(e) {
+        if (!this.isDragging) return;
+        e.preventDefault();
+
+        this.currentX = e.touches[0].clientX;
+        this.updateCardRotation();
+      }
+
+      handleTouchEnd(e) {
+        if (!this.isDragging) return;
+
+        this.isDragging = false;
+        this.cardInner.style.transition = 'transform 0.3s ease';
+
+        // Keep current rotation - no snapping, let user control exactly where card stops
+        this.applyRotation();
+      }
+
+      handleMouseDown(e) {
+        this.startX = e.clientX;
+        this.isDragging = true;
+        this.cardInner.style.transition = 'none';
+
+        // Store current rotation as base for new swipe
+        this.baseRotationY = this.rotationY;
+      }
+
+      handleMouseMove(e) {
+        if (!this.isDragging) return;
+
+        this.currentX = e.clientX;
+        this.updateCardRotation();
+      }
+
+      handleMouseUp(e) {
+        if (!this.isDragging) return;
+
+        this.isDragging = false;
+        this.cardInner.style.transition = 'transform 0.3s ease';
+
+        // Keep current rotation - no snapping, let user control exactly where card stops
+        this.applyRotation();
+      }
+
+      updateCardRotation() {
+        const deltaX = this.currentX - this.startX;
+        const cardWidth = this.card.offsetWidth;
+
+        // Calculate rotation based on swipe distance from current position
+        // Full swipe (card width) = 180 degrees rotation
+        const rotationDelta = (deltaX / cardWidth) * 180;
+        this.rotationY = this.baseRotationY + rotationDelta;
+
+        // Allow unlimited rotation in any direction - no constraints
+        // User can rotate as much as they want
+
+        this.applyRotation();
+      }
+
+      applyRotation() {
+        this.cardInner.style.transform = `rotateY(${this.rotationY}deg)`;
+      }
+    }
+
+    // Initialize swipe handler when DOM is loaded
+    document.addEventListener('DOMContentLoaded', () => {
+      const card = document.querySelector('.card');
+      new CardSwipeHandler(card);
+    });
+  </script>
+</body>
+
 </html>
